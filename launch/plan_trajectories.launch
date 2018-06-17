@@ -1,0 +1,20 @@
+<launch>
+
+<!-- adding parameters -->
+<rosparam param="/filenames/fixed_obstacles" > "/home/algh/catkin_ws/src/yumi_motion_planning/files/fixed_obstacles.txt" </rosparam>
+<rosparam param="/collision_objects/number" > 1 </rosparam>
+<rosparam param="/collision_objects/1/dimensions" >[0.095,0.03, 0.045]</rosparam>
+<rosparam param="/collision_objects/1/pose" >[0.35, 0.0, 0.0225, 0, 0, 1.57]</rosparam>
+<rosparam param="/collision_objects/2/dimensions" >[0.3, 0.01, 0.1]</rosparam>
+<rosparam param="/collision_objects/2/pose" >[0.35, -0.1, 0.05, 0, 0, 0.0]</rosparam>
+<rosparam param="/collision_objects/3/dimensions" >[0.3, 0.01, 0.1]</rosparam>
+<rosparam param="/collision_objects/3/pose" >[0.35, 0.1, 0.05, 0, 0, 0.0]</rosparam>
+<rosparam param="/collision_objects/4/dimensions" >[0.01, 0.3, 0.1]</rosparam>
+<rosparam param="/collision_objects/4/pose" >[0.25, 0.0, 0.05, 0, 0, 0.0]</rosparam>
+<rosparam param="/initial_joint_position/right_arm" >[0.24827,-1.56478,-1.70919,0.519739,-1.91655,0.381811,0.0]</rosparam>
+<rosparam param="/target_position/right_arm" >[0.35, 0.0, 0.1525, 0, 3.14, 3.14]</rosparam>
+
+<!-- running the node -->
+<node pkg="yumi_motion_planning" type="plan_trajectories" name="plan_trajectories" args="all" />
+
+</launch>
