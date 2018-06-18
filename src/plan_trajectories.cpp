@@ -26,14 +26,12 @@ int main(int argc, char** argv)
   static const std::string planning_group_right = "right_arm";
   MoveItPlanner right_arm_planner(planning_group_right);
 
-
   /*
   // initialize the planner for both arms
   moveit::planning_interface::MoveGroupInterface move_group_right(planning_group_right);
   moveit::planning_interface::PlanningSceneInterface planning_scene_interface;
   const robot_state::JointModelGroup* joint_model_group_right = move_group_right.getCurrentState()->getJointModelGroup(planning_group_right);
   moveit::planning_interface::MoveGroupInterface::Plan my_plan;
-
   move_group_right.setNumPlanningAttempts(25);
   */
 
@@ -47,6 +45,26 @@ int main(int argc, char** argv)
   param_node.getParam("/initial_joint_position/right_arm", right_joint_position);
   right_arm_planner.plan_and_move_to_joint_goal(right_joint_position);
 
+  // add objects
+  int n_objects = 0;
+  param_node.getParam("/collision_objects/number", n_objects);
+
+  for (int obj = 1; obj <= n_objects; obj++)
+  {
+    std::vector<float> object_dimension;
+    param_node.getParam("/collision_objects/"+std::to_string(obj)+"/dimensions", object_dimension);
+    std::vector<double> object_pose;
+    param_node.getParam("/collision_objects/"+std::to_string(obj)+"/pose", object_pose);
+    right_arm_planner.add_collision_object("object"+std::to_string(obj), object_dimension, create_pose(object_pose));
+  }
+
+  //std::vector<double> pose_goal;
+  //param_node.getParam("/target_position/right_arm", pose_goal);
+  //right_arm_planner.plan_and_move_to_pose_goal(pose_goal);
+  //right_arm_planner.plan_and_move_to_joint_goal(right_joint_position);
+
+  right_arm_planner.approach_from_top(0.45, 0.0, 0.1525, 3.14);
+  ROS_INFO("Program done successfully");
   /*move_group_right.setJointValueTarget(right_joint_position);
   success = (move_group_right.plan(my_plan) == moveit::planning_interface::MoveItErrorCode::SUCCESS);
   if (success)
@@ -82,8 +100,6 @@ int main(int argc, char** argv)
     param_node.getParam("/collision_objects/"+std::to_string(obj)+"/pose", object_pose);
     add_collision_object(planning_scene_interface, "object"+std::to_string(obj), object_dimension, create_pose(object_pose), collision_object_frame);
   }
-  // plan trajectories to different target poses
-  //double x_min, x_max, y_min, y_max, z_min, z_max;
 
   std::vector<float> target_pose;
   param_node.getParam("/target_position/right_arm", target_pose);
