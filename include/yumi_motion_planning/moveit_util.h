@@ -51,7 +51,9 @@ private:
   moveit::planning_interface::MoveGroupInterface* move_group_;
   moveit::planning_interface::PlanningSceneInterface planning_scene_interface_;
   moveit::planning_interface::MoveGroupInterface::Plan plan_;
+  moveit_msgs::RobotTrajectory trajectory_;
   string collision_object_frame_;
+
   int num_planning_tries_ = 20;
 
 public:
@@ -89,7 +91,6 @@ public:
   bool plan_cartesian_path(vector<geometry_msgs::Pose> waypoints)
   {
     move_group_->setMaxVelocityScalingFactor(0.1);
-    moveit_msgs::RobotTrajectory trajectory;
     const double jump_threshold = 0.0;
     const double eef_step = 0.01;
     int n_tries = 0;
@@ -97,7 +98,7 @@ public:
     double fraction_max = 0;
     while (fraction < 0.999 && n_tries < num_planning_tries_)
     {
-      fraction = move_group_->computeCartesianPath(waypoints, eef_step, jump_threshold, trajectory);
+      fraction = move_group_->computeCartesianPath(waypoints, eef_step, jump_threshold, trajectory_);
       if (fraction > fraction_max)
         fraction_max = fraction;
       n_tries++;
@@ -107,14 +108,53 @@ public:
       ROS_INFO("path not found - fraction:%f", fraction_max);
       return false;
     }
+    ROS_INFO("MoveItPlanner::plan_cartesian_path - Cartesian path successfully found - fraction: %f", fraction_max);
+    return true;
+  }
+
+  bool execute_trajectory()
+  {
+    if(trajectory_.joint_trajectory.points.size() > 0)
+    {
+      plan_.trajectory_ = trajectory_;
+      move_group_->execute(plan_);
+      return true;
+    }
     else
     {
-      ROS_INFO("Cartesian path successfully found - fraction:%f", fraction_max);
-      move_group_->execute(plan_);
-      //move_group_->move();
+      ROS_INFO("MoveItPlanner::execute_trajectory - Empty trajectory (failed)");
+      return false;
+    }
+  }
+
+  void save_trajectory(string filename)
+  {
+    int n_points = trajectory_.joint_trajectory.points.size();
+    ofstream file(filename.c_str());
+    if(file.is_open())
+    {
+      file << "<NUMBER OF POINTS>\n" << n_points << endl;
+      file << "<TIME DURATION>"<< endl;
+      for (int i = 0; i < n_points; i++)
+        file << trajectory_.joint_trajectory.points[i].time_from_start << endl;
+      for (int j = 0; j < 7; j++)
+      {
+        file << "<JOINT NAME>\n" << trajectory_.joint_trajectory.joint_names[j] << endl;
+        file << "<JOINT POSITIONS>"<< endl;
+        for (int i = 0; i < n_points; i++)
+          file << trajectory_.joint_trajectory.points[i].positions[j] << endl;
+        file << "<JOINT VELOCITIES>"<< endl;
+        for (int i = 0; i < n_points; i++)
+          file << trajectory_.joint_trajectory.points[i].velocities[j] << endl;
+      }
+      file.close();
+    }
+    else
+    {
+      ROS_INFO("MoveItPlanner::save_trajectory - Could not open the file %s", filename.c_str());
+      ROS_INFO("MoveItPlanner::save_trajectory - Trajecotry is not saved");
     }
 
-    return true;
   }
 
   bool approach_from_top(double x, double y, double z, double angle)
