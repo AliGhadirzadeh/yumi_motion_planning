@@ -146,6 +146,12 @@ public:
         file << "<JOINT VELOCITIES>"<< endl;
         for (int i = 0; i < n_points; i++)
           file << trajectory_.joint_trajectory.points[i].velocities[j] << endl;
+        file << "<JOINT ACCELERATIONS>"<< endl;
+        for (int i = 0; i < n_points; i++)
+          file << trajectory_.joint_trajectory.points[i].accelerations[j] << endl;
+        //file << "<JOINT EFFORT>"<< endl;
+        //for (int i = 0; i < n_points; i++)
+          //file << trajectory_.joint_trajectory.points[i].effort[j] << endl;
       }
       file.close();
     }
@@ -182,6 +188,18 @@ public:
     geometry_msgs::PoseStamped pose_stmp =  move_group_->getCurrentPose ();
     pose = pose_stmp.pose;
     return pose;
+  }
+
+  vector<double> sample_random_goal_pose(vector<double> lower_bound, vector<double> upper_bound)
+  {
+    int d = lower_bound.size();
+    vector<double> goal_pose(d);
+    for(int i = 0; i < d; i++)
+    {
+      double r = ((double) rand() / (RAND_MAX));
+      goal_pose[i] = (upper_bound[i]-lower_bound[i]) * r + lower_bound[i];
+    }
+    return goal_pose;
   }
 
   vector <double> get_current_rpy()
