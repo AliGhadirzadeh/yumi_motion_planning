@@ -9,6 +9,7 @@
 #include <moveit_msgs/AttachedCollisionObject.h>
 #include <moveit_msgs/CollisionObject.h>
 #include <moveit_visual_tools/moveit_visual_tools.h>
+#include <tinyxml.h>
 
 
 #include <geometry_msgs/Pose.h>
@@ -59,8 +60,8 @@ private:
 public:
   MoveItPlanner(std::string planning_group)
   {
-    move_group_ = new moveit::planning_interface::MoveGroupInterface(planning_group);
-    move_group_->setNumPlanningAttempts(25);
+    //move_group_ = new moveit::planning_interface::MoveGroupInterface(planning_group);
+    //move_group_->setNumPlanningAttempts(25);
   }
   ~MoveItPlanner()
   {
@@ -162,7 +163,35 @@ public:
     }
 
   }
-
+  void load_trajectory(string filename)
+  {
+    TiXmlDocument doc(filename.c_str());
+    doc.LoadFile();
+    TiXmlElement* root = doc.FirstChildElement();
+    if(root == NULL)
+    {
+        cout << "Failed to load file: No root element." << endl;
+        doc.Clear();
+    }
+    else
+    {
+      for(TiXmlElement* elem = root->FirstChildElement(); elem != NULL; elem = elem->NextSiblingElement())
+      {
+        cout << elem->Value() << endl;
+        cout << elem->Attribute("velocity") << endl;
+        cout << elem->Attribute("position") << endl;
+      }
+    }
+    //moveit_msgs::RobotTrajectory traj;
+    /*ifstream file(filename.c_str());
+    if(file.is_open())
+    {
+      string line;
+      getline(file, line);  // dummy read
+    }*/
+    cout << "success" << endl;
+    trajectory_.joint_trajectory.points.clear();
+  }
   bool approach_from_top(double x, double y, double z, double angle)
   {
     bool success = true;

@@ -1,0 +1,18 @@
+<launch>
+
+<!-- adding parameters -->
+<rosparam param="/moveit/move_group" > "right_arm" </rosparam>
+<rosparam param="/filenames/fixed_obstacles" > "/home/algh/catkin_ws/src/yumi_motion_planning/files/fixed_obstacles.txt" </rosparam>
+<rosparam param="/filenames/trajs" > "/home/algh/catkin_ws/src/yumi_motion_planning/files/traj.xml" </rosparam>
+<rosparam param="/collision_objects/number" > 0 </rosparam>
+<rosparam param="/collision_objects/1/dimensions" >[0.095,0.03, 0.045]</rosparam>
+<rosparam param="/collision_objects/1/pose" >[0.85, 0.0, 0.0225, 0, 0, 1.57]</rosparam>
+<rosparam param="/initial_joint_position/right_arm" >[0.24827,-1.56478,-1.70919,0.519739,-1.91655,0.381811,0.0]</rosparam>
+<rosparam param="/target/number_of_traj" > 10000 </rosparam>
+<rosparam param="/target/area_lower_bound" >[0.3, -0.25, 0.1525, 0, 3.14, -1.57]</rosparam>
+<rosparam param="/target/area_upper_bound" >[0.45, 0.25, 0.1525, 0, 3.14, 1.57]</rosparam>
+<rosparam param="/target/execute_motion" > 0 </rosparam>
+<!-- running the node -->
+<node pkg="yumi_motion_planning" type="run" name="run" args="all" />
+
+</launch>
