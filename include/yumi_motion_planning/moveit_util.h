@@ -16,8 +16,10 @@
 #include <iostream>
 #include <fstream>
 #include <string>
+#include <Eigen/Dense>
 using namespace std;
 
+#define PI 3.1415926
 
 geometry_msgs::Pose create_pose(double x, double y, double z, double roll, double pitch, double yaw)
 {
@@ -43,6 +45,65 @@ geometry_msgs::Pose create_pose(std::vector<double> p)
   tf::quaternionTFToMsg(q, pose.orientation);
   return pose;
 }
+void save_data(string filename, vector<vector<double> > data)
+{
+  int nrows = data.size();
+  int ncols = data[0].size();
+  ofstream file(filename.c_str());
+  if(file.is_open())
+  {
+    file << nrows << "\n" << ncols << endl;
+    for (int j = 0; j < nrows; j++)
+      for (int i = 0; i < ncols; i++)
+        file << data[j][i] << endl;
+    file.close();
+  }
+  else
+    ROS_INFO("Could not open the file %s to write!", filename.c_str());
+}
+void save_data(string filename, vector<double>  data)
+{
+  int nrows = 1;
+  int ncols = data.size();
+  ofstream file(filename.c_str());
+  if(file.is_open())
+  {
+    file << nrows << "\n" << ncols << endl;
+    for (int i = 0; i < ncols; i++)
+      file << data[i] << endl;
+    file.close();
+  }
+  else
+    ROS_INFO("Could not open the file %s to write!", filename.c_str());
+}
+
+vector < vector <double> > load_data(string filename)
+{
+  vector<vector<double> >data;
+  ifstream file(filename.c_str());
+  int ncols, nrows;
+  string line;
+  if(file.is_open())
+  {
+    getline(file, line);
+    nrows = atoi(line.c_str());
+    getline(file, line);
+    ncols = atoi(line.c_str());
+    vector <double> rdata(ncols);
+    for(int i = 0; i < nrows; i++)
+    {
+      for(int j =0; j < ncols; j++)
+      {
+        getline(file,line);
+        rdata[j] = atof(line.c_str());
+      }
+      data.push_back(rdata);
+    }
+  }
+  else
+    ROS_INFO("Could not open the file %s to read!", filename.c_str());
+  return data;
+}
 
 
 // moveit_util class is defined here
@@ -54,19 +115,37 @@ private:
   moveit::planning_interface::MoveGroupInterface::Plan plan_;
   moveit_msgs::RobotTrajectory trajectory_;
   string collision_object_frame_;
+  string planning_group_;
 
+  // Forward kineamtic model
+  robot_model_loader::RobotModelLoader* robot_model_loader_;
+  robot_model::RobotModelPtr kinematic_model_;
+  robot_state::RobotStatePtr kinematic_state_;
+  const robot_state::JointModelGroup* joint_model_group_;
+
+  // Other parameters
   int num_planning_tries_ = 20;
+  int njoints_ = 7;
 
 public:
   MoveItPlanner(std::string planning_group)
   {
-    //move_group_ = new moveit::planning_interface::MoveGroupInterface(planning_group);
-    //move_group_->setNumPlanningAttempts(25);
+    planning_group_ = planning_group;
+    move_group_ = new moveit::planning_interface::MoveGroupInterface(planning_group);
+    move_group_->setNumPlanningAttempts(25);
+
+    robot_model_loader_ = new  robot_model_loader::RobotModelLoader("robot_description");
+    kinematic_model_ = robot_model_loader_->getModel();
+    kinematic_state_ = robot_state::RobotStatePtr (new robot_state::RobotState(kinematic_model_));
+    kinematic_state_->setToDefaultValues();
+    joint_model_group_ = kinematic_model_->getJointModelGroup(planning_group);
   }
   ~MoveItPlanner()
   {
 
   }
+
+
   bool plan_and_move_to_joint_goal(std::vector<double> joint_goal)
   {
     move_group_->setJointValueTarget(joint_goal);
@@ -128,69 +207,129 @@ public:
     }
   }
 
-  void save_trajectory(string filename)
+  vector<double> get_trajectory_joint_position(int index)
   {
-    int n_points = trajectory_.joint_trajectory.points.size();
-    ofstream file(filename.c_str());
-    if(file.is_open())
-    {
-      file << "<NUMBER OF POINTS>\n" << n_points << endl;
-      file << "<TIME DURATION>"<< endl;
-      for (int i = 0; i < n_points; i++)
-        file << trajectory_.joint_trajectory.points[i].time_from_start << endl;
-      for (int j = 0; j < 7; j++)
-      {
-        file << "<JOINT NAME>\n" << trajectory_.joint_trajectory.joint_names[j] << endl;
-        file << "<JOINT POSITIONS>"<< endl;
-        for (int i = 0; i < n_points; i++)
-          file << trajectory_.joint_trajectory.points[i].positions[j] << endl;
-        file << "<JOINT VELOCITIES>"<< endl;
-        for (int i = 0; i < n_points; i++)
-          file << trajectory_.joint_trajectory.points[i].velocities[j] << endl;
-        file << "<JOINT ACCELERATIONS>"<< endl;
-        for (int i = 0; i < n_points; i++)
-          file << trajectory_.joint_trajectory.points[i].accelerations[j] << endl;
-        //file << "<JOINT EFFORT>"<< endl;
-        //for (int i = 0; i < n_points; i++)
-          //file << trajectory_.joint_trajectory.points[i].effort[j] << endl;
-      }
-      file.close();
-    }
-    else
-    {
-      ROS_INFO("MoveItPlanner::save_trajectory - Could not open the file %s", filename.c_str());
-      ROS_INFO("MoveItPlanner::save_trajectory - Trajecotry is not saved");
-    }
+    vector<double> joint_position(njoints_);
+    int npoints = trajectory_.joint_trajectory.points.size();
+    assert(npoints > 0);
+    assert (index < npoints);
+    index = (index == -1) ? npoints-1 : index;
+    assert (index > 0);
 
+    for (int j = 0; j < njoints_; j++)
+      joint_position[j] = trajectory_.joint_trajectory.points[index].positions[j];
+    return joint_position;
   }
-  void load_trajectory(string filename)
+
+  vector<double> fk_solver(vector <double> joint_position)
   {
-    TiXmlDocument doc(filename.c_str());
-    doc.LoadFile();
-    TiXmlElement* root = doc.FirstChildElement();
-    if(root == NULL)
-    {
-        cout << "Failed to load file: No root element." << endl;
-        doc.Clear();
-    }
-    else
-    {
-      for(TiXmlElement* elem = root->FirstChildElement(); elem != NULL; elem = elem->NextSiblingElement())
-      {
-        cout << elem->Value() << endl;
-        cout << elem->Attribute("velocity") << endl;
-        cout << elem->Attribute("position") << endl;
-      }
-    }
-    //moveit_msgs::RobotTrajectory traj;
-    /*ifstream file(filename.c_str());
-    if(file.is_open())
-    {
-      string line;
-      getline(file, line);  // dummy read
-    }*/
-    cout << "success" << endl;
+    std::vector<double> pose(6);
+
+    kinematic_state_->setJointGroupPositions(joint_model_group_, joint_position);
+    ROS_INFO("Model frame: %s", kinematic_model_->getModelFrame().c_str());
+
+    const Eigen::Affine3d& end_effector_state = kinematic_state_->getGlobalLinkTransform("yumi_link_7_r");
+
+    Eigen::Vector3d yrp = end_effector_state.rotation().eulerAngles(2,1,0);
+    Eigen::Vector3d xyz = end_effector_state.translation();
+
+    pose[0] = xyz(0); pose[1] = xyz(1); pose[2] = xyz(2);
+    pose[3] = yrp(1); pose[4] = yrp(2); pose[5] = yrp(0);
+
+    return pose;
+  }
+
+
+  void save_trajectory(string root, int traj_idx)
+  {
+    char filename[100];
+    int npoints = trajectory_.joint_trajectory.points.size();
+
+    vector <double> rdata(npoints);
+    vector< vector <double> > data;
+
+    sprintf(filename, "%s/time_steps/%04d.txt", root.c_str(), traj_idx);
+    for (int i = 0; i < npoints; i++)
+      rdata[i] = trajectory_.joint_trajectory.points[i].time_from_start.toSec();
+    save_data(filename, rdata);
+    for (int j = 0; j < njoints_; j++)
+      data.push_back(rdata);
+    sprintf(filename, "%s/positions/%04d.txt", root.c_str(), traj_idx);
+    for (int j = 0; j < njoints_; j++)
+      for (int i = 0; i < npoints; i++)
+        data[j][i] = trajectory_.joint_trajectory.points[i].positions[j];
+    save_data(filename, data);
+    sprintf(filename, "%s/velocities/%04d.txt", root.c_str(), traj_idx);
+    for (int j = 0; j < njoints_; j++)
+      for (int i = 0; i < npoints; i++)
+        data[j][i] = trajectory_.joint_trajectory.points[i].velocities[j];
+    save_data(filename, data);
+    sprintf(filename, "%s/accelerations/%04d.txt", root.c_str(), traj_idx);
+    for (int j = 0; j < njoints_; j++)
+      for (int i = 0; i < npoints; i++)
+        data[j][i] = trajectory_.joint_trajectory.points[i].accelerations[j];
+    save_data(filename, data);
+  }
+  void load_trajectory(string root, int traj_idx)
+  {
     trajectory_.joint_trajectory.points.clear();
+    char filename[100];
+    sprintf(filename, "%s/positions/%04d.txt", root.c_str(), traj_idx);
+    vector<vector<double> > pos = load_data(filename);
+    sprintf(filename, "%s/velocities/%04d.txt", root.c_str(), traj_idx);
+    vector<vector<double> > vel = load_data(filename);
+    sprintf(filename, "%s/accelerations/%04d.txt", root.c_str(), traj_idx);
+    vector<vector<double> > acc = load_data(filename);
+    sprintf(filename, "%s/time_steps/%04d.txt", root.c_str(), traj_idx);
+    vector<vector<double> > time_steps = load_data(filename);
+
+    trajectory_.joint_trajectory.joint_names.clear();
+    trajectory_.joint_trajectory.joint_names.resize(7);
+    trajectory_.joint_trajectory.joint_names[0] = "yumi_joint_1_r";
+    trajectory_.joint_trajectory.joint_names[1] = "yumi_joint_2_r";
+    trajectory_.joint_trajectory.joint_names[2] = "yumi_joint_7_r";
+    trajectory_.joint_trajectory.joint_names[3] = "yumi_joint_3_r";
+    trajectory_.joint_trajectory.joint_names[4] = "yumi_joint_4_r";
+    trajectory_.joint_trajectory.joint_names[5] = "yumi_joint_5_r";
+    trajectory_.joint_trajectory.joint_names[6] = "yumi_joint_6_r";
+
+    int npoints = pos[0].size();
+    trajectory_msgs::JointTrajectoryPoint point;
+    point.positions.resize(7);
+    point.velocities.resize(7);
+    point.accelerations.resize(7);
+
+    for (int p = 0; p < npoints; p++)
+    {
+      for(int j =0; j < njoints_; j++)
+      {
+        point.positions[j] = pos[j][p];
+        point.velocities[j] = vel[j][p];
+        point.accelerations[j] = acc[j][p];
+      }
+      ros::Duration t_from_start(time_steps[0][p]);
+      point.time_from_start = t_from_start;
+
+      trajectory_.joint_trajectory.points.push_back(point);
+    }
+    cout << "Trajectory successfully loaded!" << endl;
+  }
+
+  void print_trajectory()
+  {
+    int npoints =trajectory_.joint_trajectory.points.size();
+
+    cout <<"joints: " << endl;
+    for (int i = 0; i < trajectory_.joint_trajectory.joint_names.size(); i++)
+      cout << trajectory_.joint_trajectory.joint_names[i] << "\t";
+    cout << endl;
+
+    cout <<"npoints: " <<npoints << endl;
+    cout << "time_steps: " << endl;
+    for (int i = 0; i < npoints; i++)
+      cout << trajectory_.joint_trajectory.points[i].time_from_start << "\t";
+    cout << endl;
+
   }
   bool approach_from_top(double x, double y, double z, double angle)
   {
@@ -211,14 +350,6 @@ public:
     return success;
   }
 
-  geometry_msgs::Pose get_current_pose()
-  {
-    geometry_msgs::Pose pose;
-    geometry_msgs::PoseStamped pose_stmp =  move_group_->getCurrentPose ();
-    pose = pose_stmp.pose;
-    return pose;
-  }
-
   vector<double> sample_random_goal_pose(vector<double> lower_bound, vector<double> upper_bound)
   {
     int d = lower_bound.size();
@@ -231,9 +362,24 @@ public:
     return goal_pose;
   }
 
+  geometry_msgs::Pose get_current_pose()
+  {
+    geometry_msgs::Pose pose;
+    geometry_msgs::PoseStamped pose_stmp =  move_group_->getCurrentPose ();
+    pose = pose_stmp.pose;
+    return pose;
+  }
+
   vector <double> get_current_rpy()
   {
     std::vector<double> rpy = move_group_->	getCurrentRPY();
+    for(int i = 0; i < 3; i++)
+    {
+      while(rpy[i] > PI)
+        rpy[i] -= PI;
+      while(rpy[i] < 0)
+        rpy[i] += PI;
+    }
     return rpy;
   }
 
@@ -245,6 +391,16 @@ public:
     position[1] = pose_stmp.pose.position.y;
     position[2] = pose_stmp.pose.position.z;
     return position;
+  }
+
+  vector<double> get_current_joints()
+  {
+    const robot_state::JointModelGroup* joint_model_group = move_group_->getCurrentState()->getJointModelGroup(planning_group_);
+    vector<double> joint_position(njoints_);
+    moveit::core::RobotStatePtr current_state = move_group_->getCurrentState();
+    current_state->copyJointGroupPositions(joint_model_group, joint_position);
+    const std::vector<std::string>& joint_names = joint_model_group->getVariableNames();
+    return joint_position;
   }
 
   void add_fixed_obstacles(string filename)
