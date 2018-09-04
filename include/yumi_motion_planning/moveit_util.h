@@ -10,7 +10,7 @@
 #include <moveit_msgs/CollisionObject.h>
 #include <moveit_visual_tools/moveit_visual_tools.h>
 #include <tinyxml.h>
-
+#include <boost/lexical_cast.hpp>
 
 #include <geometry_msgs/Pose.h>
 #include <iostream>
@@ -52,10 +52,13 @@ void save_data(string filename, vector<vector<double> > data)
   ofstream file(filename.c_str());
   if(file.is_open())
   {
-    file << nrows << "\n" << ncols << endl;
+    //file << nrows << "\n" << ncols << endl;
     for (int j = 0; j < nrows; j++)
-      for (int i = 0; i < ncols; i++)
-        file << data[j][i] << endl;
+    {
+      for (int i = 0; i < (ncols-1); i++)
+        file << data[j][i] << " ";
+      file << data[j][(ncols-1)] << endl;
+    }
     file.close();
   }
   else
@@ -68,9 +71,10 @@ void save_data(string filename, vector<double>  data)
   ofstream file(filename.c_str());
   if(file.is_open())
   {
-    file << nrows << "\n" << ncols << endl;
-    for (int i = 0; i < ncols; i++)
+    //file << nrows << "\n" << ncols << endl;
+    for (int i = 0; i < (ncols-1); i++)
       file << data[i] << endl;
+    file << data[ncols-1];
     file.close();
   }
   else
@@ -78,6 +82,33 @@ void save_data(string filename, vector<double>  data)
 }
 
 vector < vector <double> > load_data(string filename)
+{
+  vector< vector<double> > data;
+  vector <double> row;
+  ifstream reader;
+  reader.open(filename.c_str());
+  string line;
+  while (getline (reader,line) )
+  {
+    std::size_t p = line.find(" ");
+    while(p != std::string::npos )
+    {
+      string value = line.substr(0, p);
+      line = line.substr(p+1);
+      p = line.find(" ");
+      row.push_back(boost::lexical_cast<double>(value));
+    }
+    //cout << line << endl;
+    //cout << boost::lexical_cast<double>(line) << endl;
+    row.push_back(boost::lexical_cast<double>(line));
+    data.push_back(row);
+    row.clear();
+  }
+  reader.close();
+  return data;
+}
+
+/*vector < vector <double> > load_data(string filename)
 {
   vector<vector<double> >data;
   ifstream file(filename.c_str());
@@ -103,7 +134,7 @@ vector < vector <double> > load_data(string filename)
   else
     ROS_INFO("Could not open the file %s to read!", filename.c_str());
   return data;
-}
+}*/
 
 
 // moveit_util class is defined here
@@ -226,7 +257,7 @@ public:
     std::vector<double> pose(6);
 
     kinematic_state_->setJointGroupPositions(joint_model_group_, joint_position);
-    ROS_INFO("Model frame: %s", kinematic_model_->getModelFrame().c_str());
+    //ROS_INFO("Model frame: %s", kinematic_model_->getModelFrame().c_str());
 
     const Eigen::Affine3d& end_effector_state = kinematic_state_->getGlobalLinkTransform("yumi_link_7_r");
 
@@ -272,6 +303,12 @@ public:
   }
   void load_trajectory(string root, int traj_idx)
   {
+    /*
+    char filename[100];
+    sprintf(filename, "%s/time_steps/%04d.txt", root.c_str(), traj_idx);
+    vector<vector<double> > time_steps = load_data(filename);
+    return;*/
+
     trajectory_.joint_trajectory.points.clear();
     char filename[100];
     sprintf(filename, "%s/positions/%04d.txt", root.c_str(), traj_idx);
@@ -307,12 +344,12 @@ public:
         point.velocities[j] = vel[j][p];
         point.accelerations[j] = acc[j][p];
       }
-      ros::Duration t_from_start(time_steps[0][p]);
+      ros::Duration t_from_start(time_steps[p][0]);
       point.time_from_start = t_from_start;
 
       trajectory_.joint_trajectory.points.push_back(point);
     }
-    cout << "Trajectory successfully loaded!" << endl;
+    //cout << "Trajectory successfully loaded!" << endl;
   }
 
   void print_trajectory()
