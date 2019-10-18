@@ -8,7 +8,15 @@
 #include <moveit_msgs/DisplayTrajectory.h>
 #include <moveit_msgs/AttachedCollisionObject.h>
 #include <moveit_msgs/CollisionObject.h>
+
+#include <moveit/move_group_interface/move_group_interface.h>
+#include <moveit/planning_scene_interface/planning_scene_interface.h>
+
+#include <moveit_msgs/DisplayRobotState.h>
+#include <moveit_msgs/DisplayTrajectory.h>
+
 #include <moveit_visual_tools/moveit_visual_tools.h>
+
 #include <tinyxml.h>
 #include <boost/lexical_cast.hpp>
 
@@ -385,6 +393,19 @@ public:
     plan_cartesian_path(waypoints);
 
     return success;
+  }
+
+  void shift_end_effector(double delta_x, double delta_y, double delta_z)
+  {
+    vector <double> pose = get_current_xyz();
+    vector <double> rpy = get_current_rpy();
+    pose.push_back(rpy[0]);
+    pose.push_back(rpy[1]);
+    pose.push_back(rpy[2]);
+    pose[0] += delta_x;
+    pose[1] += delta_y;
+    pose[2] += delta_z;
+    plan_and_move_to_pose_goal(pose);
   }
 
   vector<double> sample_random_goal_pose(vector<double> lower_bound, vector<double> upper_bound)
