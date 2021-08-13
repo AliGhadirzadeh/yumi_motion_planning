@@ -30,6 +30,7 @@ add_library(yumi_motion_planning src/moveit_util.cpp)
 
 #add_executable(motion_planning src/motion_planning.cpp)
 add_executable(plan_trajectories src/plan_trajectories.cpp)
+add_executable(plan_pushing_trajs src/plan_pushing_trajs.cpp)
 add_executable(run src/run.cpp)
 #add_executable(add_obstacles src/add_obstacles.cpp)
 
@@ -37,4 +38,5 @@ add_executable(run src/run.cpp)
 #target_link_libraries(motion_planning ${catkin_LIBRARIES})
 target_link_libraries(plan_trajectories ${catkin_LIBRARIES} ${TinyXML_LIBRARIES})
 target_link_libraries(run ${catkin_LIBRARIES} ${TinyXML_LIBRARIES})
+target_link_libraries(plan_pushing_trajs ${catkin_LIBRARIES} ${TinyXML_LIBRARIES})
 #target_link_libraries(add_obstacles ${catkin_LIBRARIES})
