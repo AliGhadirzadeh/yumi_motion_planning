@@ -61,51 +61,43 @@ int main(int argc, char** argv)
   std_msgs::Float64 cmd;
   cmd.data = 10;
   r_gripper_pub.publish(cmd);
-
   int traj_counter = 0;
-  bool break_loop = false;  
 
   for (double x = target_area_lowerbound[0]; x <= target_area_upperbound[0]; x += steps[0])
   {
-  if (break_loop)
-    break;
     for (double y = target_area_lowerbound[1]; y <= target_area_upperbound[1]; y += steps[1])
-    {	
-	if (break_loop)
-	  break;
-	// get current position
-        vector <double> curr_rpy, curr_xyz;
-        curr_rpy = right_arm_planner.get_current_rpy();
-        curr_xyz = right_arm_planner.get_current_xyz();
-        cout << "actual pose:\t" << curr_xyz[0] << "\t" << curr_xyz[1] << "\t"<< curr_xyz[2] << endl;
-        cout << "            \t" << curr_rpy[0] << "\t" << curr_rpy[1] << "\t"<< curr_rpy[2] << endl;
-	geometry_msgs::Pose p;
-	vector<geometry_msgs::Pose> waypoints; 
-	goal_pose = target_area_lowerbound;
-	goal_pose[0] = curr_xyz[0];
-	goal_pose[1] = curr_xyz[1];
-	goal_pose[2] = curr_xyz[2];
-	goal_pose[3] = curr_rpy[0];
-	goal_pose[4] = curr_rpy[1];
-	goal_pose[5] = curr_rpy[2];
-	goal_pose[1] = 0.02;
-	p = create_pose(goal_pose);
-	waypoints.push_back(p);
-	right_arm_planner.plan_cartesian_path(waypoints);
-	right_arm_planner.execute_trajectory();
-	cout << "traj executed" << endl;
-
-
-        traj_counter++;
-
-        if (traj_counter >= max_ntraj)
-        {
-          cout << "max number of trajectories generated! terminating ... " << endl;
-	  break_loop = true;
-        }
+    {
+      // get current position
+      vector <double> curr_rpy, curr_xyz;
+      curr_rpy = right_arm_planner.get_current_rpy();
+      curr_xyz = right_arm_planner.get_current_xyz();
+      cout << "actual pose:\t" << curr_xyz[0] << "\t" << curr_xyz[1] << "\t"<< curr_xyz[2] << endl;
+      cout << "            \t" << curr_rpy[0] << "\t" << curr_rpy[1] << "\t"<< curr_rpy[2] << endl;
+      // setting a new goal position
+      geometry_msgs::Pose p;
+      vector<geometry_msgs::Pose> waypoints;
+      goal_pose = target_area_lowerbound;
+      goal_pose[0] = curr_xyz[0];
+      goal_pose[1] = curr_xyz[1];
+      goal_pose[2] = curr_xyz[2];
+      goal_pose[3] = curr_rpy[0];
+      goal_pose[4] = curr_rpy[1];
+      goal_pose[5] = curr_rpy[2];
+      goal_pose[1] += 0.02;
+      p = create_pose(goal_pose);
+      waypoints.push_back(p);
+      right_arm_planner.plan_cartesian_path(waypoints);
+      right_arm_planner.execute_trajectory();
+      traj_counter++;
+      if (traj_counter >= max_ntraj)
+        break;
+    }
+    if (traj_counter >= max_ntraj)
+    {
+      cout << "max number of trajectories generated! terminating ... " << endl;
+      break;
     }
   }
-
   // termination
   cmd.data = 0;
   r_gripper_pub.publish(cmd);
