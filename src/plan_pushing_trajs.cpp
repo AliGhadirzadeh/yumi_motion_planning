@@ -1,6 +1,7 @@
 #include <yumi_motion_planning/moveit_util.h>
 #include <std_msgs/Float64.h>
 #include <time.h>
+#include <math.h>
 
 int main(int argc, char** argv)
 {
@@ -11,6 +12,7 @@ int main(int argc, char** argv)
   ros::NodeHandle param_node;
 
   cout << "plan_pushing_trajs node started" << endl;
+  srand (time(NULL));
 
   int execute_motion;
   param_node.getParam("/target/execute_motion", execute_motion);
@@ -26,7 +28,8 @@ int main(int argc, char** argv)
   right_arm_planner.add_fixed_obstacles(filename);
   // move both of the arms to the initial position
   param_node.getParam("/initial_joint_position/right_arm", right_joint_position);
-  // right_arm_planner.plan_and_move_to_joint_goal(right_joint_position);
+  right_arm_planner.plan_and_move_to_joint_goal(right_joint_position);
+  sleep(5);
 
   // add objects
   int n_objects = 0;
@@ -63,32 +66,54 @@ int main(int argc, char** argv)
   r_gripper_pub.publish(cmd);
   int traj_counter = 0;
 
+
   for (double x = target_area_lowerbound[0]; x <= target_area_upperbound[0]; x += steps[0])
   {
     for (double y = target_area_lowerbound[1]; y <= target_area_upperbound[1]; y += steps[1])
-    {
+    {      
+      for (double num_samples = 0; num_samples < 10; num_samples++)
+      {
+	// set the initial goal 
+	goal_pose = target_area_lowerbound;       
+        goal_pose[0] = x;
+        goal_pose[1] = y;
+	geometry_msgs::Pose p;
+        vector<geometry_msgs::Pose> waypoints, waypoints2;
+	p = create_pose(goal_pose);
+        waypoints.push_back(p);
+	right_arm_planner.plan_cartesian_path(waypoints);
+        right_arm_planner.execute_trajectory();
+        sleep(2);
+	// set the push goal 
+	double rand_num = static_cast<float>(rand())/(static_cast<float>(RAND_MAX)); 
+	cout << rand_num << endl;
+        double dx = (rand_num - 0.5) *0.2;	
+	double dy = sqrt(0.01-dx*dx);
+	rand_num = static_cast<float>(rand())/(static_cast<float>(RAND_MAX));
+	cout << rand_num << endl;
+	if (rand_num < 0.5)
+	  dy = -dy;
+	goal_pose[0] += dx;
+	goal_pose[1] += dy;
+	p = create_pose(goal_pose);
+        waypoints2.push_back(p);
+	right_arm_planner.plan_cartesian_path(waypoints2);
+        right_arm_planner.execute_trajectory();
+        sleep(2);
+              
+       	traj_counter++;
+	if (traj_counter >= max_ntraj)
+          break;
+      }
+
       // get current position
       vector <double> curr_rpy, curr_xyz;
       curr_rpy = right_arm_planner.get_current_rpy();
       curr_xyz = right_arm_planner.get_current_xyz();
       cout << "actual pose:\t" << curr_xyz[0] << "\t" << curr_xyz[1] << "\t"<< curr_xyz[2] << endl;
       cout << "            \t" << curr_rpy[0] << "\t" << curr_rpy[1] << "\t"<< curr_rpy[2] << endl;
-      // setting a new goal position
-      geometry_msgs::Pose p;
-      vector<geometry_msgs::Pose> waypoints;
-      goal_pose = target_area_lowerbound;
-      goal_pose[0] = curr_xyz[0];
-      goal_pose[1] = curr_xyz[1];
-      goal_pose[2] = curr_xyz[2];
-      goal_pose[3] = curr_rpy[0];
-      goal_pose[4] = curr_rpy[1];
-      goal_pose[5] = curr_rpy[2];
-      goal_pose[1] += 0.02;
-      p = create_pose(goal_pose);
-      waypoints.push_back(p);
-      right_arm_planner.plan_cartesian_path(waypoints);
-      right_arm_planner.execute_trajectory();
-      traj_counter++;
+
+      
       if (traj_counter >= max_ntraj)
         break;
     }

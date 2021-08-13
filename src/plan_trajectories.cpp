@@ -1,5 +1,6 @@
 #include <yumi_motion_planning/moveit_util.h>
 #include <std_msgs/Float64.h>
+#include <stdlib.h>
 #include <time.h>
 
 int main(int argc, char** argv)
@@ -11,6 +12,7 @@ int main(int argc, char** argv)
   ros::NodeHandle param_node;
 
   cout << "node started" << endl;
+  srand (time(NULL));
 
   int execute_motion;
   param_node.getParam("/target/execute_motion", execute_motion);
