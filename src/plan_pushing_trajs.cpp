@@ -45,15 +45,9 @@ int main(int argc, char** argv)
   char traj_filename[100];
 
   std::cout << std::fixed << std::setprecision(2);
-  std::vector<double> states(2);
+  std::vector<double> states(9);
   std::vector<double> goal_pose(target_area_lowerbound);
 
-  //ros::Publisher r_gripper_pub;
-  //ros::NodeHandle r_gripper_node;
-  //r_gripper_pub = r_gripper_node.advertise<std_msgs::Float64>("/yumi/gripper_r_effort_cmd", 10);
-  //std_msgs::Float64 cmd;
-  //cmd.data = 10;
-  //r_gripper_pub.publish(cmd);
   int traj_counter = 0;
   int reset_counter = 0;
   vector<geometry_msgs::Pose> waypoints;
@@ -90,6 +84,9 @@ int main(int argc, char** argv)
       curr_xyz = right_arm_planner.get_current_xyz();
       states[0] = curr_xyz[0];
       states[1] = curr_xyz[1];
+      vectory<double> joint_position = right_arm_planner.get_current_joints();
+      for (int j = 0; j < 7; j++)
+        states[j+2] = joint_position[j];
 
       // set the push goal
       double rand_num = static_cast<float>(rand())/(static_cast<float>(RAND_MAX));
@@ -128,7 +125,7 @@ int main(int argc, char** argv)
               break;
     }
   }
-  
+
   cout << "Program done successfully" << endl;
   return 0;
 }
