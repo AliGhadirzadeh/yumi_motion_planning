@@ -3,11 +3,12 @@
 <!-- adding parameters -->
 <rosparam param="/moveit/move_group" > "right_arm" </rosparam>
 <rosparam param="/filenames/fixed_obstacles" > "/home/ali/catkin_ws/src/yumi_motion_planning/files/fixed_obstacles.txt" </rosparam>
-<rosparam param="/filenames/trajs" > "/home/ali/catkin_ws/src/yumi_motion_planning/files" </rosparam>
+<rosparam param="/filenames/trajs" > "/home/ali/catkin_ws/src/yumi_motion_planning/files/pushing" </rosparam>
 <rosparam param="/initial_joint_position/right_arm" >[1.89, -0.996, -1.75,  0.211, -2.15,  1.24,  1.26]</rosparam>
-<rosparam param="/target/max_number_of_traj" > 10 </rosparam>
-<rosparam param="/target/area_lower_bound" >[0.45,-0.2, 0.17, 3.13, 0.0, 0.0]</rosparam>
-<rosparam param="/target/area_upper_bound" >[0.55, 0.2, 0.17, 3.13, 0.0, 0.0]</rosparam>
+<rosparam param="/target/max_number_of_traj" > 20 </rosparam>
+<rosparam param="/target/num_traj_per_position" > 2 </rosparam>
+<rosparam param="/target/area_lower_bound" >[0.3,-0.3, 0.17, 3.13, 0.0, 0.0]</rosparam>
+<rosparam param="/target/area_upper_bound" >[0.5, 0.1, 0.17, 3.13, 0.0, 0.0]</rosparam>
 <rosparam param="/target/execute_motion" > 1 </rosparam>
 
 </launch>

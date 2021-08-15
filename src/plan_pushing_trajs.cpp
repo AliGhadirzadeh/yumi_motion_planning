@@ -14,11 +14,12 @@ int main(int argc, char** argv)
   cout << "plan_pushing_trajs node started" << endl;
   srand (time(NULL));
 
+  cout << "the first random number: " << rand() << endl;
+
   int execute_motion;
   param_node.getParam("/target/execute_motion", execute_motion);
 
-  std::vector<double> right_joint_position;
-  std::vector<double> left_joint_position;
+
   string move_group_name;
   param_node.getParam("/moveit/move_group", move_group_name);
   MoveItPlanner right_arm_planner(move_group_name);
@@ -28,35 +29,45 @@ int main(int argc, char** argv)
   param_node.getParam("/filenames/fixed_obstacles", filename);
   right_arm_planner.add_fixed_obstacles(filename);
 
-  // move both of the arms to the initial position
+  std::vector<double> right_joint_position;
   param_node.getParam("/initial_joint_position/right_arm", right_joint_position);
-  right_arm_planner.plan_and_move_to_joint_goal(right_joint_position);
-  sleep(5);
 
-  std::vector<double> target_area_lowerbound, target_area_upperbound, goal_pose;
+  std::vector<double> target_area_lowerbound, target_area_upperbound;
   param_node.getParam("/target/area_lower_bound", target_area_lowerbound);
   param_node.getParam("/target/area_upper_bound", target_area_upperbound);
 
   int max_ntraj = 0;
   param_node.getParam("/target/max_number_of_traj", max_ntraj);
+  int num_traj_per_position = 0;
+  param_node.getParam("/target/num_traj_per_position", num_traj_per_position);
 
   param_node.getParam("/filenames/trajs", filename);
   char traj_filename[100];
 
   std::cout << std::fixed << std::setprecision(2);
   std::vector<double> states(2);
+  std::vector<double> goal_pose(target_area_lowerbound);
 
-  ros::Publisher r_gripper_pub;
-  ros::NodeHandle r_gripper_node;
-  r_gripper_pub = r_gripper_node.advertise<std_msgs::Float64>("/yumi/gripper_r_effort_cmd", 10);
-  std_msgs::Float64 cmd;
-  cmd.data = 10;
-  r_gripper_pub.publish(cmd);
+  //ros::Publisher r_gripper_pub;
+  //ros::NodeHandle r_gripper_node;
+  //r_gripper_pub = r_gripper_node.advertise<std_msgs::Float64>("/yumi/gripper_r_effort_cmd", 10);
+  //std_msgs::Float64 cmd;
+  //cmd.data = 10;
+  //r_gripper_pub.publish(cmd);
   int traj_counter = 0;
-
+  int reset_counter = 0;
   vector<geometry_msgs::Pose> waypoints;
   while (traj_counter < max_ntraj)
   {
+    if (reset_counter <= 0)
+    {
+      // move the arms to the initial position
+      right_arm_planner.plan_and_move_to_joint_goal(right_joint_position);
+      sleep(2);
+      reset_counter = 5;
+    }
+    reset_counter--;
+
     // sample an initial position
     double x = target_area_lowerbound[0] + static_cast <float> (rand()) / (static_cast <float> (RAND_MAX/(target_area_upperbound[0]-target_area_lowerbound[0])));
     double y = target_area_lowerbound[1] + static_cast <float> (rand()) / (static_cast <float> (RAND_MAX/(target_area_upperbound[1]-target_area_lowerbound[1])));
@@ -67,11 +78,12 @@ int main(int argc, char** argv)
     waypoints.push_back(create_pose(goal_pose));
     right_arm_planner.plan_cartesian_path(waypoints);
     right_arm_planner.execute_trajectory();
+    sleep(2);
     waypoints.clear();
-    sleep(1);
+
 
     // sample multiple goal positions
-    for (int num_samples = 0; num_samples < 10; num_samples++)
+    for (int samples = 0; samples < num_traj_per_position; samples++)
     {
       // measure the pose
       vector <double> curr_xyz;
@@ -80,11 +92,10 @@ int main(int argc, char** argv)
       states[1] = curr_xyz[1];
 
       // set the push goal
-      goal_pose = target_area_lowerbound;
-    	double rand_num = static_cast<float>(rand())/(static_cast<float>(RAND_MAX));
+      double rand_num = static_cast<float>(rand())/(static_cast<float>(RAND_MAX));
       double dx = (rand_num - 0.5) *0.2;
-    	double dy = sqrt(0.01-dx*dx);
-      if (rand() > (RAND_MAX / 2))
+      double dy = sqrt(0.01-dx*dx);
+      if ((samples % 2) == 0)
     	  dy = -dy;
       goal_pose[0] = x + dx;
       goal_pose[1] = y + dy;
@@ -117,10 +128,7 @@ int main(int argc, char** argv)
               break;
     }
   }
-  // termination
-  cmd.data = 0;
-  r_gripper_pub.publish(cmd);
-
+  
   cout << "Program done successfully" << endl;
   return 0;
 }
