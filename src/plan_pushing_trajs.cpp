@@ -57,8 +57,8 @@ int main(int argc, char** argv)
     {
       // move the arms to the initial position
       right_arm_planner.plan_and_move_to_joint_goal(right_joint_position);
-      sleep(2);
-      reset_counter = 5;
+      sleep(1);
+      reset_counter = 3;
     }
     reset_counter--;
 
@@ -72,7 +72,7 @@ int main(int argc, char** argv)
     waypoints.push_back(create_pose(goal_pose));
     right_arm_planner.plan_cartesian_path(waypoints);
     right_arm_planner.execute_trajectory();
-    sleep(2);
+    sleep(1);
     waypoints.clear();
 
 
@@ -84,7 +84,7 @@ int main(int argc, char** argv)
       curr_xyz = right_arm_planner.get_current_xyz();
       states[0] = curr_xyz[0];
       states[1] = curr_xyz[1];
-      vectory<double> joint_position = right_arm_planner.get_current_joints();
+      std::vector<double> joint_position = right_arm_planner.get_current_joints();
       for (int j = 0; j < 7; j++)
         states[j+2] = joint_position[j];
 
