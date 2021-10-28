@@ -53,6 +53,7 @@ int main(int argc, char** argv)
   right_arm_joint_positions.resize(7);
   right_arm_joint_velocity.resize(7);
   std_msgs::Float64 cmd;
+  KDLWrapper right_arm_kdl_wrapper;
   KDL::Twist right_arm_cart_velocity;
   KDL::JntArray right_arm_joint_velcmd(7);
 
@@ -122,7 +123,7 @@ int main(int argc, char** argv)
         cmd.data = right_arm_joint_velcmd(i);
         r_velocity_command_pub[i].publish(cmd);
       }
-      usleep(10000) //wait 10 msec
+      usleep(10000); //wait 10 msec
     }
   }
   cout << "node terminated successfully" << endl;
