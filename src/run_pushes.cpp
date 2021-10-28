@@ -56,6 +56,7 @@ int main(int argc, char** argv)
   KDLWrapper right_arm_kdl_wrapper;
   KDL::Twist right_arm_cart_velocity;
   KDL::JntArray right_arm_joint_velcmd(7);
+  string command_topic;
 
   signal(SIGINT, terminate);
   srand (time(NULL));
@@ -115,8 +116,8 @@ int main(int argc, char** argv)
         push_cmd_time = -1;
         break;
       }
-      right_arm_cart_velocity.vel = KDL::Vector(push_cmd[0], push_cmd[1], 0.0);
-      right_arm_cart_velocity.rot = KDL::Vector(push_cmd[2], 0.0, 0.0);
+      right_arm_cart_velocity.vel = KDL::Vector(push_cmd[0][0], push_cmd[0][1], 0.0);
+      right_arm_cart_velocity.rot = KDL::Vector(push_cmd[0][2], 0.0, 0.0);
       right_arm_kdl_wrapper.ik_solver_vel->CartToJnt(right_arm_joint_positions, right_arm_cart_velocity, right_arm_joint_velcmd);
       for(int i = 0; i < 7; i++)
       {
