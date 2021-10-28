@@ -3,6 +3,8 @@ project(yumi_motion_planning)
 add_compile_options(-std=c++11)
 
 find_package(catkin REQUIRED COMPONENTS
+  kdl_parser
+  kdl_wrapper
   cmake_modules
   roscpp
   moveit_core
@@ -11,32 +13,35 @@ find_package(catkin REQUIRED COMPONENTS
 )
 
 find_package(TinyXML REQUIRED)
+find_package(orocos_kdl REQUIRED)
 
 catkin_package(
   INCLUDE_DIRS include
   LIBRARIES yumi_motion_planning
-  CATKIN_DEPENDS roscpp moveit_core moveit_ros_planning_interface
-  DEPENDS system_lib TinyXML
+  CATKIN_DEPENDS roscpp kdl_parser kdl_wrapper moveit_core moveit_ros_planning_interface
+  DEPENDS system_lib TinyXML orocos_kdl
 )
 
 include_directories(
   include
   ${catkin_INCLUDE_DIRS}
+  ${orocos_kdl_INCLUDE_DIRS}
   ${TinyXML_INCLUDE_DIRS}
 )
 
-add_library(yumi_motion_planning src/moveit_util.cpp)
-# add_dependencies(${PROJECT_NAME} ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 
-#add_executable(motion_planning src/motion_planning.cpp)
+link_directories(${catkin_LIBRARY_DIRS})
+link_directories(${orocos_kdl_LIBRARY_DIRS})
+find_library(KDL_LIBRARY REQUIRED NAMES orocos-kdl HINTS ${orocos_kdl_LIBRARY_DIRS})
+
+add_library(yumi_motion_planning src/moveit_util.cpp)
+
 add_executable(plan_trajectories src/plan_trajectories.cpp)
 add_executable(plan_pushing_trajs src/plan_pushing_trajs.cpp)
 add_executable(run src/run.cpp)
-#add_executable(add_obstacles src/add_obstacles.cpp)
+add_executable(run_pushes src/run_pushes.cpp)
 
-
-#target_link_libraries(motion_planning ${catkin_LIBRARIES})
 target_link_libraries(plan_trajectories ${catkin_LIBRARIES} ${TinyXML_LIBRARIES})
 target_link_libraries(run ${catkin_LIBRARIES} ${TinyXML_LIBRARIES})
 target_link_libraries(plan_pushing_trajs ${catkin_LIBRARIES} ${TinyXML_LIBRARIES})
-#target_link_libraries(add_obstacles ${catkin_LIBRARIES})
+target_link_libraries(run_pushes ${catkin_LIBRARIES} ${TinyXML_LIBRARIES})

@@ -1,0 +1,9 @@
+<launch>
+
+<!-- adding parameters -->
+<rosparam param="/moveit/move_group" > "right_arm" </rosparam>
+<rosparam param="/filenames/fixed_obstacles" > "/home/ali/catkin_ws/src/yumi_motion_planning/files/fixed_obstacles.txt" </rosparam>
+<rosparam param="/initial_joint_position/right_arm" >[1.89, -0.996, -1.75,  0.211, -2.15,  1.24,  1.26]</rosparam>
+<rosparam param="/command_timeout" > 0.5 </rosparam>
+
+</launch>
