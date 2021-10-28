@@ -27,7 +27,7 @@
 #include <Eigen/Dense>
 using namespace std;
 
-#define PI 3.1415926
+#define PI_NUM 3.1415926
 
 geometry_msgs::Pose create_pose(double x, double y, double z, double roll, double pitch, double yaw)
 {
@@ -433,10 +433,10 @@ public:
     std::vector<double> rpy = move_group_->	getCurrentRPY();
     for(int i = 0; i < 3; i++)
     {
-      while(rpy[i] > PI)
-        rpy[i] -= PI;
+      while(rpy[i] > PI_NUM)
+        rpy[i] -= PI_NUM;
       while(rpy[i] < 0)
-        rpy[i] += PI;
+        rpy[i] += PI_NUM;
     }
     return rpy;
   }
