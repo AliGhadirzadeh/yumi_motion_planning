@@ -17,14 +17,14 @@
 using namespace std;
 
 // global variables
-vector< vector<double> > push_cmd;
+vector<double> push_cmd;
 double push_cmd_time = -1;
 volatile sig_atomic_t flag = 0;
 KDL::JntArray right_arm_joint_positions;
 vector<double> right_arm_joint_velocity;
 
 // function declarations
-vector < vector <double> > str2vector(string str, int n_rows, int n_cols);
+vector <double> str2vector(string str, int n_data);
 
 void terminate(int sig){
   flag = 1;
@@ -42,7 +42,8 @@ void joint_state_callback(const sensor_msgs::JointState & msg)
 
 void update_traj_callback(const std_msgs::String & msg)
 {
-  push_cmd = str2vector(msg.data, 1, 3);
+  push_cmd = str2vector(msg.data, 3);
+  cout << push_cmd[0] << ' ' << push_cmd[1] << ' ' << push_cmd[2] << endl; 
   push_cmd_time = ros::Time::now().toSec();
 }
 
@@ -52,6 +53,7 @@ int main(int argc, char** argv)
 
   right_arm_joint_positions.resize(7);
   right_arm_joint_velocity.resize(7);
+  push_cmd.resize(3);
   std_msgs::Float64 cmd;
   KDLWrapper right_arm_kdl_wrapper;
   KDL::Twist right_arm_cart_velocity;
@@ -91,23 +93,24 @@ int main(int argc, char** argv)
   std::vector<double> right_joint_position;
   param_node.getParam("/initial_joint_position/right_arm", right_joint_position);
 
+  if(!right_arm_kdl_wrapper.init("yumi_body", "yumi_link_7_r"))
+      ROS_ERROR("Error initiliazing right_arm_kdl_wrapper");
+  right_arm_kdl_wrapper.ik_solver_vel->setLambda(0.3);
+
   while(ros::ok())
   {
     if (flag)
-    {
-      cout << "Stop signal received! node is terminating ..." << endl;
       break;
-    }
     // move the arms to the initial position
     right_arm_planner.plan_and_move_to_joint_goal(right_joint_position);
     // wait until commands are received
-    while(push_cmd_time < 0)
+    while(push_cmd_time < 0 && ~flag)
       usleep(1000);
     // follow the given commands
     while(ros::ok())
-    {
+    {      
       double time_since_last_cmd = ros::Time::now().toSec() - push_cmd_time;
-      if (time_since_last_cmd > cmd_timeout)
+      if (time_since_last_cmd > cmd_timeout || flag)
       {
         cout << "Commands stopped - restarting!" << endl;
         cmd.data = 0;
@@ -116,37 +119,34 @@ int main(int argc, char** argv)
         push_cmd_time = -1;
         break;
       }
-      right_arm_cart_velocity.vel = KDL::Vector(push_cmd[0][0], push_cmd[0][1], 0.0);
-      right_arm_cart_velocity.rot = KDL::Vector(push_cmd[0][2], 0.0, 0.0);
+      if (flag)
+        break;
+      right_arm_cart_velocity.vel = KDL::Vector(push_cmd[0], push_cmd[1], 0.0);
+      right_arm_cart_velocity.rot = KDL::Vector(push_cmd[2], 0.0, 0.0);
       right_arm_kdl_wrapper.ik_solver_vel->CartToJnt(right_arm_joint_positions, right_arm_cart_velocity, right_arm_joint_velcmd);
       for(int i = 0; i < 7; i++)
       {
         cmd.data = right_arm_joint_velcmd(i);
         r_velocity_command_pub[i].publish(cmd);
       }
-      usleep(10000); //wait 10 msec
+      usleep(100000); //wait 100 msec
     }
   }
+  if (flag)
+    cout << "Stop signal received! node is terminating ..." << endl;
   cout << "node terminated successfully" << endl;
   return 0;
 }
 
-vector < vector <double> > str2vector(string str, int n_rows, int n_cols)
+vector <double> str2vector(string str, int n_data)
 {
-  vector< vector<double> > data;
-  vector <double> row;
-
-  for (int i = 0; i < n_rows; i++)
+  vector<double> data;
+  for (int j = 0; j < n_data; j++)
   {
-    for (int j = 0; j < n_cols; j++)
-    {
-      std::size_t p = str.find(" ");
-      string value = str.substr(0, p);
-      str = str.substr(p + 1);
-      row.push_back(boost::lexical_cast<double>(value));
-    }
-    data.push_back(row);
-    row.clear();
+    std::size_t p = str.find(" ");
+    string value = str.substr(0, p);
+    str = str.substr(p + 1);
+    data.push_back(boost::lexical_cast<double>(value));
   }
   return data;
 }
